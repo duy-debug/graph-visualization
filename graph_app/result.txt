@@ -1,0 +1,14 @@
+Số lượng đỉnh: 2
+Danh sách đỉnh: a, b
+
+Danh sách cạnh:
+a b
+
+Ma trận kề:
+#	a	b
+a	0	1
+b	1	0
+
+Danh sách kề:
+a -> b
+b -> a
