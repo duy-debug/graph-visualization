@@ -7,7 +7,7 @@ import networkx as nx
 from .graph_data import GraphData
 from .graph_io import (
     export_graph_to_file,
-    load_karate_club,
+    load_karate_club,   
     read_graph_from_file,
     read_graph_from_text,
 )
@@ -35,152 +35,153 @@ class GraphApp(tk.Tk):
     # UI
     # ------------------------------------------------------------------
     def _build_widgets(self) -> None:
-        main = ttk.Frame(self, padding=10)
-        main.pack(fill=tk.BOTH, expand=True)
+        # Layout chính: Horizontal PanedWindow (Trái: Sidebar, Phải: Graph)
+        self.main_paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
+        self.main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # --- Sidebar (Left) ---
+        self.sidebar = ttk.Frame(self.main_paned, width=350)
+        self.main_paned.add(self.sidebar, weight=0) # weight=0 để sidebar không tự giãn quá mức
+
+        # --- Content Area (Right) ---
+        self.content_area = ttk.Frame(self.main_paned)
+        self.main_paned.add(self.content_area, weight=1)
+
+        # ==================== SIDEBAR CONTENT ====================
+        
+        # 1. Nhập liệu (Options)
         self.options_var = {
             "directed": tk.BooleanVar(value=False),
             "weighted": tk.BooleanVar(value=False),
         }
-        options_frame = ttk.LabelFrame(main, text="Dữ liệu nhập vào", padding=5)
-        options_frame.pack(fill=tk.X, pady=2)
-        ttk.Label(
-            options_frame,
-            text="Số lượng đỉnh",
-        ).grid(row=0, column=0, sticky=tk.W, padx=5, pady=1)
-        self.nodes_entry = ttk.Entry(options_frame, width=40)
-        self.nodes_entry.grid(row=1, column=0, sticky=tk.EW, padx=5)
-        ttk.Label(options_frame, text="Danh sách cạnh").grid(
-            row=2, column=0, sticky=tk.W, padx=5, pady=1
-        )
-        # Text widget với scrollbar cho danh sách cạnh (height giảm từ 6 xuống 4)
+        
+        options_frame = ttk.LabelFrame(self.sidebar, text="Dữ liệu nhập vào", padding=5)
+        options_frame.pack(fill=tk.X, pady=(0, 5))
+
+        # Grid layout cho phần nhập liệu
+        ttk.Label(options_frame, text="Số đỉnh:").grid(row=0, column=0, sticky=tk.W, padx=2)
+        self.nodes_entry = ttk.Entry(options_frame, width=10)
+        self.nodes_entry.grid(row=0, column=1, sticky=tk.W, padx=2)
+
+        check_frame = ttk.Frame(options_frame)
+        check_frame.grid(row=0, column=2, rowspan=2, padx=5, sticky=tk.NE)
+        ttk.Checkbutton(check_frame, text="Có hướng", variable=self.options_var["directed"], command=self._on_option_change).pack(anchor=tk.W)
+        ttk.Checkbutton(check_frame, text="Có trọng số", variable=self.options_var["weighted"], command=self._on_option_change).pack(anchor=tk.W)
+
+        ttk.Label(options_frame, text="Danh sách cạnh:").grid(row=1, column=0, columnspan=2, sticky=tk.W, padx=2, pady=(5, 0))
+        
         edges_frame = ttk.Frame(options_frame)
-        edges_frame.grid(row=3, column=0, sticky=tk.EW, padx=5)
-        self.edges_entry = tk.Text(edges_frame, height=3, width=40)
+        edges_frame.grid(row=2, column=0, columnspan=3, sticky=tk.EW, padx=2, pady=2)
+        self.edges_entry = tk.Text(edges_frame, height=8, width=35) # Tăng height lên xíu
         edges_scrollbar = ttk.Scrollbar(edges_frame, orient=tk.VERTICAL, command=self.edges_entry.yview)
         self.edges_entry.configure(yscrollcommand=edges_scrollbar.set)
         self.edges_entry.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         edges_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        # Auto-update khi thay đổi nội dung danh sách cạnh
         self.edges_entry.bind('<KeyRelease>', lambda e: self._auto_update_graph())
-        check_frame = ttk.Frame(options_frame)
-        check_frame.grid(row=0, column=1, rowspan=4, sticky=tk.NE, padx=10)
-        ttk.Checkbutton(
-            check_frame,
-            text="Đồ thị có hướng",
-            variable=self.options_var["directed"],
-            command=self._on_option_change,
-        ).pack(anchor=tk.W, pady=2)
-        ttk.Checkbutton(
-            check_frame,
-            text="Đồ thị có trọng số",
-            variable=self.options_var["weighted"],
-            command=self._on_option_change,
-        ).pack(anchor=tk.W, pady=2)
-        
-        # Label hiển thị lỗi (đặt ở dòng riêng để không làm dịch chuyển checkbox)
+
+        # Error label
         self.error_label_var = tk.StringVar(value="")
-        self.error_label = ttk.Label(
-            options_frame, 
-            textvariable=self.error_label_var, 
-            foreground="red",
-            wraplength=600
-        )
-        self.error_label.grid(row=4, column=0, columnspan=2, sticky=tk.W, padx=5, pady=(0, 3))
+        self.error_label = ttk.Label(options_frame, textvariable=self.error_label_var, foreground="red", wraplength=250)
+        self.error_label.grid(row=3, column=0, columnspan=3, sticky=tk.W, padx=2, pady=(0, 2))
 
+        # Buttons
         btn_frame = ttk.Frame(options_frame)
-        btn_frame.grid(row=5, column=0, columnspan=2, sticky=tk.EW, pady=3)
-        ttk.Button(btn_frame, text="Đọc file", command=self._import_from_file).pack(
-            side=tk.LEFT, padx=5
-        )
-        ttk.Button(btn_frame, text="Tải Karate Club", command=self._load_karate).pack(
-            side=tk.LEFT, padx=5
-        )
-        ttk.Button(btn_frame, text="Xuất file", command=self._export_graph).pack(
-            side=tk.LEFT, padx=5
-        )
-        ttk.Button(btn_frame, text="Reset", command=self._reset_graph).pack(
-            side=tk.LEFT, padx=5
-        )
-        # hiển thị cấu trúc + đồ thị trong paned window
-        paned = ttk.PanedWindow(main, orient=tk.HORIZONTAL)
-        paned.pack(fill=tk.BOTH, expand=True, pady=2)
-        left_panel = ttk.Frame(paned)
-        paned.add(left_panel, weight=1)
-        matrix_frame = ttk.LabelFrame(left_panel, text="Ma trận kề")
-        matrix_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
-        self.matrix_table = ttk.Treeview(
-            matrix_frame, columns=[], show="headings", height=8
-        )
-        self.matrix_table.pack(fill=tk.BOTH, expand=True)
-        list_frame = ttk.LabelFrame(left_panel, text="Danh sách kề")
-        list_frame.pack(fill=tk.BOTH, expand=True, padx=5)
-        self.adj_list_text = tk.Text(list_frame, height=10, state=tk.DISABLED)
-        self.adj_list_text.pack(fill=tk.BOTH, expand=True)
-        right_panel = ttk.Frame(paned)
-        paned.add(right_panel, weight=1)
-        # Thao tác thêm/xóa - Di chuyển lên đầu
-        crud_frame = ttk.LabelFrame(right_panel, text="Thao tác thêm/xóa")
-        crud_frame.pack(fill=tk.X, pady=(0, 5), padx=5)
+        btn_frame.grid(row=4, column=0, columnspan=3, sticky=tk.EW, pady=2)
+        # Chia thành 2 dòng button cho gọn
+        btn_row1 = ttk.Frame(btn_frame)
+        btn_row1.pack(fill=tk.X, pady=1)
+        ttk.Button(btn_row1, text="Đọc file", command=self._import_from_file, width=10).pack(side=tk.LEFT, padx=1)
+        ttk.Button(btn_row1, text="Karate", command=self._load_karate, width=10).pack(side=tk.LEFT, padx=1)
+        
+        btn_row2 = ttk.Frame(btn_frame)
+        btn_row2.pack(fill=tk.X, pady=1)
+        ttk.Button(btn_row2, text="Xuất file", command=self._export_graph, width=10).pack(side=tk.LEFT, padx=1)
+        ttk.Button(btn_row2, text="Reset", command=self._reset_graph, width=10).pack(side=tk.LEFT, padx=1)
 
-        # node controls
-        ttk.Label(crud_frame, text="Đỉnh:").grid(row=0, column=0, padx=5, pady=2)
-        self.node_name_entry = ttk.Entry(crud_frame, width=10)
-        self.node_name_entry.grid(row=0, column=1, padx=5)
-        ttk.Button(crud_frame, text="Thêm đỉnh", command=self._add_vertex).grid(
-            row=0, column=2, padx=5
-        )
-        ttk.Button(crud_frame, text="Xóa đỉnh", command=self._remove_vertex).grid(
-            row=0, column=3, padx=5
-        )
-        # edge controls
-        ttk.Label(crud_frame, text="Cạnh").grid(row=1, column=0, padx=5, pady=2)
-        self.edge_u_entry = ttk.Entry(crud_frame, width=8)
-        self.edge_u_entry.grid(row=1, column=1, padx=5)
-        self.edge_v_entry = ttk.Entry(crud_frame, width=8)
-        self.edge_v_entry.grid(row=1, column=2, padx=5)
-        self.edge_w_entry = ttk.Entry(crud_frame, width=8, state=tk.DISABLED)
-        self.edge_w_entry.grid(row=1, column=3, padx=5)
-        ttk.Button(crud_frame, text="Thêm cạnh", command=self._add_edge).grid(
-            row=1, column=4, padx=5
-        )
-        ttk.Button(crud_frame, text="Xóa cạnh", command=self._remove_edge).grid(
-            row=1, column=5, padx=5
-        )
-        # Biểu diễn trực quan - Sau thao tác thêm/xóa
-        plot_frame = ttk.LabelFrame(right_panel, text="Biểu diễn trực quan")
-        plot_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=(0, 5))
-        self.figure = Figure(figsize=(5, 4))
+        # 2. Thao tác nhanh (CRUD)
+        crud_frame = ttk.LabelFrame(self.sidebar, text="Thao tác nhanh", padding=5)
+        crud_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        # Node CRUD
+        node_row = ttk.Frame(crud_frame)
+        node_row.pack(fill=tk.X, pady=2)
+        ttk.Label(node_row, text="Đỉnh:").pack(side=tk.LEFT)
+        self.node_name_entry = ttk.Entry(node_row, width=8)
+        self.node_name_entry.pack(side=tk.LEFT, padx=2)
+        ttk.Button(node_row, text="+", width=3, command=self._add_vertex).pack(side=tk.LEFT)
+        ttk.Button(node_row, text="-", width=3, command=self._remove_vertex).pack(side=tk.LEFT)
+
+        # Edge CRUD
+        edge_row = ttk.Frame(crud_frame)
+        edge_row.pack(fill=tk.X, pady=2)
+        ttk.Label(edge_row, text="Cạnh:").pack(side=tk.LEFT)
+        self.edge_u_entry = ttk.Entry(edge_row, width=5)
+        self.edge_u_entry.pack(side=tk.LEFT, padx=1)
+        self.edge_v_entry = ttk.Entry(edge_row, width=5)
+        self.edge_v_entry.pack(side=tk.LEFT, padx=1)
+        self.edge_w_entry = ttk.Entry(edge_row, width=5, state=tk.DISABLED)
+        self.edge_w_entry.pack(side=tk.LEFT, padx=1)
+        ttk.Button(edge_row, text="+", width=3, command=self._add_edge).pack(side=tk.LEFT)
+        ttk.Button(edge_row, text="-", width=3, command=self._remove_edge).pack(side=tk.LEFT)
+
+        # 3. Highlight & Mật độ
+        hl_frame = ttk.LabelFrame(self.sidebar, text="Công cụ & Thông tin", padding=5)
+        hl_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        ttk.Label(hl_frame, text="Highlight Đỉnh:").pack(anchor=tk.W)
+        self.highlight_nodes_entry = ttk.Entry(hl_frame)
+        self.highlight_nodes_entry.pack(fill=tk.X, pady=(0, 2))
+        self.highlight_nodes_entry.bind('<KeyRelease>', lambda e: self._update_highlights_from_inputs())
+
+        ttk.Label(hl_frame, text="Highlight Cạnh:").pack(anchor=tk.W)
+        self.highlight_edges_entry = ttk.Entry(hl_frame)
+        self.highlight_edges_entry.pack(fill=tk.X, pady=(0, 2))
+        self.highlight_edges_entry.bind('<KeyRelease>', lambda e: self._update_highlights_from_inputs())
+
+        self.density_label_var = tk.StringVar(value="Mật độ: 0.000")
+        ttk.Label(hl_frame, textvariable=self.density_label_var, font=('TkDefaultFont', 9, 'bold'), foreground="#2980b9").pack(anchor=tk.E, pady=2)
+
+        # 4. Data View (Ma trận / Danh sách kề) - Dùng Notebook để tiết kiệm chỗ
+        data_notebook = ttk.Notebook(self.sidebar)
+        data_notebook.pack(fill=tk.BOTH, expand=True)
+
+        # Tab Ma trận
+        matrix_tab = ttk.Frame(data_notebook)
+        data_notebook.add(matrix_tab, text="Ma trận kề")
+        self.matrix_table = ttk.Treeview(matrix_tab, columns=[], show="headings")
+        matrix_scroll_y = ttk.Scrollbar(matrix_tab, orient=tk.VERTICAL, command=self.matrix_table.yview)
+        matrix_scroll_x = ttk.Scrollbar(matrix_tab, orient=tk.HORIZONTAL, command=self.matrix_table.xview)
+        self.matrix_table.configure(yscrollcommand=matrix_scroll_y.set, xscrollcommand=matrix_scroll_x.set)
+        
+        self.matrix_table.grid(row=0, column=0, sticky='nsew')
+        matrix_scroll_y.grid(row=0, column=1, sticky='ns')
+        matrix_scroll_x.grid(row=1, column=0, sticky='ew')
+        matrix_tab.grid_columnconfigure(0, weight=1)
+        matrix_tab.grid_rowconfigure(0, weight=1)
+
+        # Tab Danh sách kề
+        list_tab = ttk.Frame(data_notebook)
+        data_notebook.add(list_tab, text="Danh sách kề")
+        self.adj_list_text = tk.Text(list_tab, state=tk.DISABLED, font=("Consolas", 10))
+        list_scroll = ttk.Scrollbar(list_tab, orient=tk.VERTICAL, command=self.adj_list_text.yview)
+        self.adj_list_text.configure(yscrollcommand=list_scroll.set)
+        self.adj_list_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        list_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # ==================== GRAPH CONTENT ====================
+        
+        plot_frame = ttk.LabelFrame(self.content_area, text="Biểu diễn trực quan (Interactive)")
+        plot_frame.pack(fill=tk.BOTH, expand=True)
+        
+        self.figure = Figure(figsize=(5, 4), dpi=100)
         self.ax = self.figure.add_subplot(111)
         self.canvas = FigureCanvasTkAgg(self.figure, master=plot_frame)
         self.canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
-        # Kết nối event handlers cho kéo thả đỉnh
+        # Connect events
         self.canvas.mpl_connect('button_press_event', self._on_mouse_press)
         self.canvas.mpl_connect('button_release_event', self._on_mouse_release)
         self.canvas.mpl_connect('motion_notify_event', self._on_mouse_motion)
-        highlight_frame = ttk.Frame(right_panel)
-        highlight_frame.pack(fill=tk.X, pady=5, padx=5)
-        # Cấu hình grid để density label nằm bên phải
-        highlight_frame.grid_columnconfigure(1, weight=1)
-        ttk.Label(highlight_frame, text="Highlight đỉnh").grid(
-            row=0, column=0, sticky=tk.W, padx=5
-        )
-        self.highlight_nodes_entry = ttk.Entry(highlight_frame, width=25)
-        self.highlight_nodes_entry.grid(row=0, column=1, padx=5, sticky=tk.EW)
-        # Auto-update khi thay đổi nội dung
-        self.highlight_nodes_entry.bind('<KeyRelease>', lambda e: self._update_highlights_from_inputs())
-        ttk.Label(highlight_frame, text="Highlight cạnh").grid(
-            row=1, column=0, sticky=tk.W, padx=5, pady=2
-        )
-        self.highlight_edges_entry = ttk.Entry(highlight_frame, width=25)
-        self.highlight_edges_entry.grid(row=1, column=1, padx=5, sticky=tk.EW)
-        # Auto-update khi thay đổi nội dung
-        self.highlight_edges_entry.bind('<KeyRelease>', lambda e: self._update_highlights_from_inputs())
-        # Density label - đặt bên phải highlight controls
-        self.density_label_var = tk.StringVar(value="Mật độ: ")
-        ttk.Label(highlight_frame, textvariable=self.density_label_var, font=('TkDefaultFont', 10, 'bold')).grid(
-            row=0, column=2, rowspan=2, sticky=tk.E, padx=15
-        )
     # ------------------------------------------------------------------
     # Event handlers
     # ------------------------------------------------------------------
@@ -820,103 +821,176 @@ class GraphApp(tk.Tk):
     # ------------------------------------------------------------------
     # Mouse event handlers cho kéo thả đỉnh và highlight
     # ------------------------------------------------------------------
-    def _find_clicked_edge(self, click_x, click_y, threshold=0.1):
-        """Tìm cạnh gần nhất với điểm click, trả về (cạnh, khoảng cách)."""
+    # ------------------------------------------------------------------
+    # Mouse event handlers cho kéo thả đỉnh và highlight
+    # ------------------------------------------------------------------
+    def _data_to_display_coords(self, pos):
+        """Chuyển đổi tọa độ dữ liệu (data coords) sang tọa độ màn hình (display pixel coords)."""
+        x, y = pos
+        # ax.transData.transform trả về (x_screen, y_screen)
+        screen_point = self.ax.transData.transform((x, y))
+        return screen_point
+
+    def _get_clicked_node(self, event_x, event_y, radius=20):
+        """Tìm đỉnh được click dựa trên tọa độ pixel, trả về tên đỉnh hoặc None."""
+        if self.pos is None:
+            return None
+        
+        # Duyệt qua các node, chuyển tọa độ node sang pixel và so sánh khoảng cách
+        clicked_node = None
+        min_dist = float('inf')
+
+        for node, (nx, ny) in self.pos.items():
+            screen_x, screen_y = self._data_to_display_coords((nx, ny))
+            # Tính khoảng cách Euclidean
+            dist = ((screen_x - event_x)**2 + (screen_y - event_y)**2)**0.5
+            
+            if dist < radius and dist < min_dist:
+                min_dist = dist
+                clicked_node = node
+        
+        return clicked_node
+
+    def _get_clicked_edge(self, event_x, event_y, threshold=10):
+        """Tìm cạnh được click dựa trên tọa độ pixel."""
         import numpy as np
+        if self.pos is None:
+            return None
+            
         nx_graph = self.graph.to_networkx()
         min_dist = float('inf')
         clicked_edge = None
+
         for u, v in nx_graph.edges():
-            x1, y1 = self.pos[u]
-            x2, y2 = self.pos[v]
-            # Tính khoảng cách từ điểm click đến đường thẳng (u, v)
+            # Lấy tọa độ pixel của 2 đầu mút
+            p1 = self._data_to_display_coords(self.pos[u])
+            p2 = self._data_to_display_coords(self.pos[v])
+            x1, y1 = p1
+            x2, y2 = p2
+            
+            # Tính khoảng cách từ điểm click (event_x, event_y) đến đoạn thẳng (p1, p2)
             dx = x2 - x1
             dy = y2 - y1
             length_sq = dx*dx + dy*dy
-            if length_sq < 0.00001:  # Điểm trùng nhau
+            
+            if length_sq < 0.00001: 
                 continue
-            # Tham số t cho điểm chiếu trên đoạn thẳng
-            t = max(0, min(1, ((click_x - x1) * dx + (click_y - y1) * dy) / length_sq))
-            # Điểm chiếu gần nhất
+                
+            # Tham số t
+            t = max(0, min(1, ((event_x - x1) * dx + (event_y - y1) * dy) / length_sq))
+            
             proj_x = x1 + t * dx
             proj_y = y1 + t * dy
-            # Khoảng cách từ click đến điểm chiếu
-            dist = np.sqrt((click_x - proj_x)**2 + (click_y - proj_y)**2)
+            
+            dist = np.sqrt((event_x - proj_x)**2 + (event_y - proj_y)**2)
+            
             if dist < threshold and dist < min_dist:
                 min_dist = dist
                 clicked_edge = (u, v)
-        return clicked_edge, min_dist
+
+        return clicked_edge
+
     def _on_mouse_press(self, event):
-        """Xử lý khi nhấn chuột - phân biệt single click (drag) và double click (highlight)"""
-        if event.inaxes != self.ax or self.pos is None or event.xdata is None or event.ydata is None:
+        """Xử lý khi nhấn chuột: Xác định mục tiêu (Node/Edge) để Highlight hoặc Drag."""
+        if event.inaxes != self.ax or self.pos is None:
             return
-        click_pos = (event.xdata, event.ydata)
-        # Kiểm tra click vào node - dùng threshold vừa phải để tránh click ngoài vẫn nhận
-        node_threshold = 0.15
-        clicked_node = None
-        min_node_dist = float('inf')
-        for node, (x, y) in self.pos.items():
-            dist = ((x - click_pos[0])**2 + (y - click_pos[1])**2)**0.5
-            if dist < min_node_dist and dist < node_threshold:
-                min_node_dist = dist
-                clicked_node = node
-        # Double-click: ưu tiên đỉnh, chỉ xét cạnh nếu không trúng đỉnh nào
-        if event.dblclick:
-            # Nếu click nằm trong vùng của một đỉnh -> chỉ toggle đỉnh đó
-            if clicked_node is not None:
-                if clicked_node in self.highlighted_nodes:
-                    self.highlighted_nodes.remove(clicked_node)
-                else:
-                    self.highlighted_nodes.add(clicked_node)
-                self._sync_highlight_inputs()
-                self._draw_graph()
-                return
-            # Không trúng đỉnh nào, thử bắt cạnh gần nhất
-            clicked_edge, edge_dist = self._find_clicked_edge(click_pos[0], click_pos[1], threshold=0.1)
-            if clicked_edge is not None:
-                if clicked_edge in self.highlighted_edges:
-                    self.highlighted_edges.remove(clicked_edge)
-                else:
-                    self.highlighted_edges.add(clicked_edge)
-                self._sync_highlight_inputs()
-                self._draw_graph()
-                return
-            # Double-click nhưng không trúng cạnh hay đỉnh -> không làm gì
-            return
-        # Single click: chỉ dùng cho kéo thả đỉnh
+            
+        # Lưu tọa độ pixel của điểm click
+        self.drag_start_screen = (event.x, event.y)
+        self.is_dragging_active = False # Chưa bắt đầu drag thực sự
+        
+        # 1. Kiểm tra click vào Node (ưu tiên cao nhất)
+        clicked_node = self._get_clicked_node(event.x, event.y, radius=20) # Radius 20px
+        
         if clicked_node is not None:
+            self.click_target = clicked_node
+            self.click_type = 'node'
+            
+            # Setup Drag setup
             self.dragging = True
             self.selected_node = clicked_node
-            # Lưu offset để kéo mượt hơn, tránh node "nhảy" về vị trí chuột
+            # Lưu offset data coords
             node_x, node_y = self.pos[clicked_node]
-            self.drag_offset = (node_x - event.xdata, node_y - event.ydata)
+            if event.xdata is not None and event.ydata is not None:
+                self.drag_offset = (node_x - event.xdata, node_y - event.ydata)
+            else:
+                self.drag_offset = (0, 0)
+                
             self.canvas.get_tk_widget().config(cursor="hand2")
-    def _on_mouse_release(self, event):
-        """Xử lý khi thả chuột"""
-        self.dragging = False
+            return
+
+        # 2. Nếu không trúng Node, kiểm tra Edge
+        clicked_edge = self._get_clicked_edge(event.x, event.y, threshold=10) # Threshold 10px
+        if clicked_edge is not None:
+            self.click_target = clicked_edge
+            self.click_type = 'edge'
+            self.selected_node = None
+            self.dragging = False
+            return
+            
+        # Click ra ngoài khoảng trống
+        self.click_target = None
+        self.click_type = None
         self.selected_node = None
-        self.drag_offset = None
-        self.canvas.get_tk_widget().config(cursor="")
+        self.dragging = False
+
     def _on_mouse_motion(self, event):
-        """Xử lý khi di chuyển chuột - chỉ drag khi đang dragging"""
+        """Xử lý di chuyển chuột cho Dragging."""
         if not self.dragging or self.selected_node is None or event.inaxes != self.ax:
             return
         if event.xdata is None or event.ydata is None:
             return
-        # Cập nhật vị trí đỉnh theo offset để di chuyển mượt hơn
-        if self.drag_offset is not None:
-            dx, dy = self.drag_offset
+
+        # Kiểm tra xem đã di chuyển đủ xa để tính là drag chưa?
+        # Tránh việc click (rung tay 1 tí) bị tính là drag và mất highlight
+        dx_screen = event.x - self.drag_start_screen[0]
+        dy_screen = event.y - self.drag_start_screen[1]
+        dist_sq = dx_screen**2 + dy_screen**2
+        
+        if dist_sq > 25: # > 5 pixels -> Coi là Drag
+            self.is_dragging_active = True
+        
+        if self.is_dragging_active:
+            # Logic Drag: cập nhật vị trí node
+            dx, dy = self.drag_offset if self.drag_offset else (0, 0)
             new_x = event.xdata + dx
             new_y = event.ydata + dy
-        else:
-            new_x, new_y = event.xdata, event.ydata
-        self.pos[self.selected_node] = (new_x, new_y)
-        # Vẽ lại đồ thị
-        try:
+            self.pos[self.selected_node] = (new_x, new_y)
+            try:
+                self._draw_graph()
+            except:
+                pass
+
+    def _on_mouse_release(self, event):
+        """Xử lý khi thả chuột: Thực hiện Highlight nếu là Click (không Drag)."""
+        # Nếu đã drag thực sự -> không highlight
+        if not self.is_dragging_active and self.click_target is not None:
+            # XỬ LÝ CLICK: HIGHLIGHT
+            if self.click_type == 'node':
+                node = self.click_target
+                if node in self.highlighted_nodes:
+                    self.highlighted_nodes.remove(node)
+                else:
+                    self.highlighted_nodes.add(node)
+            
+            elif self.click_type == 'edge':
+                edge = self.click_target
+                if edge in self.highlighted_edges:
+                    self.highlighted_edges.remove(edge)
+                else:
+                    self.highlighted_edges.add(edge)
+            
+            # Cập nhật giao diện
+            self._sync_highlight_inputs()
             self._draw_graph()
-        except Exception as e:
-            # Nếu có lỗi, in ra để debug nhưng không crash
-            print(f"Lỗi khi vẽ: {e}")
+
+        # Reset states
+        self.dragging = False
+        self.is_dragging_active = False
+        self.selected_node = None
+        self.click_target = None
+        self.drag_offset = None
+        self.canvas.get_tk_widget().config(cursor="")
 def main() -> None:
     app = GraphApp()
     app.mainloop()
