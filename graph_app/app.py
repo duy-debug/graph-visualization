@@ -12,29 +12,42 @@ from .graph_io import (
     read_graph_from_text,
 )
 class GraphApp(tk.Tk):
+    """
+    Lớp chính điều khiển giao diện người dùng (Controller & View).
+    Kế thừa từ tk.Tk để tạo cửa sổ chính của ứng dụng.
+    """
     def __init__(self) -> None:
         super().__init__()
-        self.title("Mô phỏng đồ thị")
-        self.geometry("1200x800")
+        self.title("Graph Manager - Ứng dụng Quản lý Đồ thị")
+        self.geometry("1400x900")
+        
+        # Cố gắng bật chế độ toàn màn hình nếu môi trường hỗ trợ
         try:
             self.state("zoomed")
         except tk.TclError:
             self.attributes("-zoomed", True)
+
+        # Khởi tạo dữ liệu đồ thị rỗng
         self.graph = GraphData()
-        # Biến cho tính năng kéo thả đỉnh
-        self.pos = None  # Vị trí các đỉnh
-        self.dragging = False  # Đang kéo đỉnh
-        self.selected_node = None  # Đỉnh được chọn
-        self.drag_offset = None  # Độ lệch giữa điểm click và tâm đỉnh khi kéo
-        # Biến cho highlight bằng click
-        self.highlighted_nodes = set()  # Các đỉnh được highlight
-        self.highlighted_edges = set()  # Các cạnh được highlight (u, v
+        
+        # Các biến phục vụ tính năng kéo thả đỉnh trên Canvas
+        self.pos = None            # Vị trí tọa độ (x, y) của các đỉnh
+        self.dragging = False      # Trạng thái đang kéo chuột
+        self.selected_node = None  # Đỉnh đang được chọn để di chuyển
+        self.drag_offset = None    # Độ lệch vị trí khi kéo
+
+        # Các biến phục vụ tính năng đánh dấu (Highlight)
+        self.highlighted_nodes = set()  # Tập hợp các đỉnh được highlight
+        self.highlighted_edges = set()  # Tập hợp các cạnh được highlight
+
+        # Xây dựng các widget giao diện và vẽ đồ thị lần đầu
         self._build_widgets()
         self._draw_graph()
     # ------------------------------------------------------------------
-    # UI
+    # GIAO DIỆN (UI)
     # ------------------------------------------------------------------
     def _build_widgets(self) -> None:
+        """Khởi tạo và sắp xếp các thành phần giao diện trên cửa sổ."""
         # Layout chính: Horizontal PanedWindow (Trái: Sidebar, Phải: Graph)
         self.main_paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
         self.main_paned.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -108,8 +121,8 @@ class GraphApp(tk.Tk):
         ttk.Label(node_row, text="Đỉnh:").pack(side=tk.LEFT)
         self.node_name_entry = ttk.Entry(node_row, width=8)
         self.node_name_entry.pack(side=tk.LEFT, padx=2)
-        ttk.Button(node_row, text="+", width=3, command=self._add_vertex).pack(side=tk.LEFT)
-        ttk.Button(node_row, text="-", width=3, command=self._remove_vertex).pack(side=tk.LEFT)
+        ttk.Button(node_row, text="Thêm", width=3, command=self._add_vertex).pack(side=tk.LEFT)
+        ttk.Button(node_row, text="Xóa", width=3, command=self._remove_vertex).pack(side=tk.LEFT)
 
         # Edge CRUD
         edge_row = ttk.Frame(crud_frame)
@@ -121,8 +134,8 @@ class GraphApp(tk.Tk):
         self.edge_v_entry.pack(side=tk.LEFT, padx=1)
         self.edge_w_entry = ttk.Entry(edge_row, width=5, state=tk.DISABLED)
         self.edge_w_entry.pack(side=tk.LEFT, padx=1)
-        ttk.Button(edge_row, text="+", width=3, command=self._add_edge).pack(side=tk.LEFT)
-        ttk.Button(edge_row, text="-", width=3, command=self._remove_edge).pack(side=tk.LEFT)
+        ttk.Button(edge_row, text="Thêm", width=3, command=self._add_edge).pack(side=tk.LEFT)
+        ttk.Button(edge_row, text="Xóa", width=3, command=self._remove_edge).pack(side=tk.LEFT)
 
         # 3. Highlight & Mật độ
         hl_frame = ttk.LabelFrame(self.sidebar, text="Công cụ & Thông tin", padding=5)
@@ -170,7 +183,7 @@ class GraphApp(tk.Tk):
 
         # ==================== GRAPH CONTENT ====================
         
-        plot_frame = ttk.LabelFrame(self.content_area, text="Biểu diễn trực quan (Interactive)")
+        plot_frame = ttk.LabelFrame(self.content_area, text="Biểu diễn trực quan")
         plot_frame.pack(fill=tk.BOTH, expand=True)
         
         self.figure = Figure(figsize=(5, 4), dpi=100)
@@ -183,7 +196,7 @@ class GraphApp(tk.Tk):
         self.canvas.mpl_connect('button_release_event', self._on_mouse_release)
         self.canvas.mpl_connect('motion_notify_event', self._on_mouse_motion)
     # ------------------------------------------------------------------
-    # Event handlers
+    # CÁC HÀM XỬ LÝ SỰ KIỆN (EVENT HANDLERS)
     # ------------------------------------------------------------------
     def _parse_node_count(self) -> int:
         """Đọc số lượng đỉnh từ ô nhập"""
@@ -261,6 +274,7 @@ class GraphApp(tk.Tk):
             edges.append((u, v, weight))
         return edges
     def _update_graph(self) -> None:
+        """Cập nhật đồ thị khi người dùng nhấn một nút lệnh cụ thể (Ví dụ: Thêm/Xóa)."""
         try:
             # Trích xuất tất cả đỉnh từ danh sách cạnh (chấp nhận mọi loại: số, chữ, ký tự đặc biệt)
             edges_nodes = self._extract_nodes_from_edges()
@@ -361,6 +375,7 @@ class GraphApp(tk.Tk):
             # Hiển thị lỗi trong label màu đỏ
             self.error_label_var.set(str(e))
     def _on_option_change(self) -> None:
+        """Xử lý khi thay đổi các tùy chọn như 'Có hướng' hoặc 'Có trọng số'."""
         old_directed = self.graph.directed
         new_directed = self.options_var["directed"].get()
         self.graph.directed = new_directed
@@ -435,7 +450,7 @@ class GraphApp(tk.Tk):
         except Exception as exc:  # noqa: BLE001
             messagebox.showerror("Không đọc được file", str(exc))
     def _export_graph(self) -> None:
-        """Xuất cấu trúc đồ thị hiện tại ra file .txt bằng hộp thoại lưu file."""
+        """Xuất dữ liệu đồ thị hiện tại ra file văn bản (.txt)."""
         file_path = filedialog.asksaveasfilename(
             defaultextension=".txt",
             filetypes=[("Text", "*.txt")],
@@ -574,7 +589,7 @@ class GraphApp(tk.Tk):
         self.highlight_nodes_entry.delete(0, tk.END)
         self.highlight_edges_entry.delete(0, tk.END)
     # ------------------------------------------------------------------
-    # Refresh UI
+    # CẬP NHẬT GIAO DIỆN (REFRESH UI)
     # ------------------------------------------------------------------
     def _update_input_fields(self) -> None:
         """Cập nhật các ô nhập liệu để đồng bộ với đồ thị hiện tại"""
@@ -706,6 +721,7 @@ class GraphApp(tk.Tk):
         # Sau khi cập nhật trạng thái highlight nội bộ, vẽ lại đồ thị
         self._draw_graph()
     def _draw_graph(self) -> None:
+        """Vẽ đồ thị lên khung Canvas sử dụng Matplotlib và NetworkX."""
         self.ax.clear()
         nx_graph = self.graph.to_networkx()
         # Chỉ tính toán lại layout nếu chưa có hoặc số đỉnh thay đổi
