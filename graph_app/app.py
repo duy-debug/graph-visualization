@@ -112,7 +112,7 @@ class GraphApp(tk.Tk):
         ttk.Button(btn_row2, text="Reset", command=self._reset_graph, width=10).pack(side=tk.LEFT, padx=1)
 
         # 2. Thao tác nhanh (CRUD)
-        crud_frame = ttk.LabelFrame(self.sidebar, text="Thao tác nhanh", padding=5)
+        crud_frame = ttk.LabelFrame(self.sidebar, text="Thao tác đồ thị", padding=5)
         crud_frame.pack(fill=tk.X, pady=(0, 5))
         
         # Node CRUD
@@ -121,8 +121,8 @@ class GraphApp(tk.Tk):
         ttk.Label(node_row, text="Đỉnh:").pack(side=tk.LEFT)
         self.node_name_entry = ttk.Entry(node_row, width=8)
         self.node_name_entry.pack(side=tk.LEFT, padx=2)
-        ttk.Button(node_row, text="Thêm", width=3, command=self._add_vertex).pack(side=tk.LEFT)
-        ttk.Button(node_row, text="Xóa", width=3, command=self._remove_vertex).pack(side=tk.LEFT)
+        ttk.Button(node_row, text="Thêm", width=8, command=self._add_vertex).pack(side=tk.LEFT, padx=2)
+        ttk.Button(node_row, text="Xóa", width=8, command=self._remove_vertex).pack(side=tk.LEFT, padx=2)
 
         # Edge CRUD
         edge_row = ttk.Frame(crud_frame)
@@ -134,11 +134,11 @@ class GraphApp(tk.Tk):
         self.edge_v_entry.pack(side=tk.LEFT, padx=1)
         self.edge_w_entry = ttk.Entry(edge_row, width=5, state=tk.DISABLED)
         self.edge_w_entry.pack(side=tk.LEFT, padx=1)
-        ttk.Button(edge_row, text="Thêm", width=3, command=self._add_edge).pack(side=tk.LEFT)
-        ttk.Button(edge_row, text="Xóa", width=3, command=self._remove_edge).pack(side=tk.LEFT)
+        ttk.Button(edge_row, text="Thêm", width=8, command=self._add_edge).pack(side=tk.LEFT, padx=2)
+        ttk.Button(edge_row, text="Xóa", width=8, command=self._remove_edge).pack(side=tk.LEFT, padx=2)
 
         # 3. Highlight & Mật độ
-        hl_frame = ttk.LabelFrame(self.sidebar, text="Công cụ & Thông tin", padding=5)
+        hl_frame = ttk.LabelFrame(self.sidebar, text="Bảng điều khiển", padding=5)
         hl_frame.pack(fill=tk.X, pady=(0, 5))
         
         ttk.Label(hl_frame, text="Highlight Đỉnh:").pack(anchor=tk.W)
@@ -260,7 +260,7 @@ class GraphApp(tk.Tk):
                     except ValueError:
                         raise ValueError(f"Dòng {line_no}: trọng số '{parts[2]}' không hợp lệ.")
                 elif len(parts) == 2:
-                    weight = 0.0  # mặc định 0 nếu không nhập trọng số
+                    weight = 1.0  # Mặc định là 1 nếu có cạnh nối nhưng không nhập trọng số
                 else:
                     raise ValueError(
                         f"Dòng {line_no}: định dạng cạnh không hợp lệ (chỉ hỗ trợ 'u v' hoặc 'u v w')."
@@ -529,7 +529,7 @@ class GraphApp(tk.Tk):
                 )
                 return
         else:
-            weight = 1.0
+            weight = 1.0  # Mặc định là 1 nếu không nhập trọng số cho cạnh mới
         # Thêm hoặc cập nhật cạnh (ghi đè nếu đã tồn tại và có trọng số)
         self.graph.add_edge(u, v, weight)
         self._refresh_views()
@@ -640,18 +640,21 @@ class GraphApp(tk.Tk):
             self.matrix_table.heading(col, text=col)
             self.matrix_table.column(col, width=60, anchor=tk.CENTER)
         for idx, row in enumerate(matrix):
-            values = [self.graph.nodes[idx]]
             u = self.graph.nodes[idx]
+            values = [u]
             for col_idx, val in enumerate(row):
-                if self.graph.weighted:
-                    nbr = self.graph.nodes[col_idx]
-                    weight = self.graph.adjacency.get(u, {}).get(nbr)
-                    if weight is None:
-                        values.append("INF")
-                    else:
-                        values.append(f"{weight:g}")
+                v = self.graph.nodes[col_idx]
+                if u == v:
+                    values.append("0")
                 else:
-                    values.append(f"{val:g}")
+                    if self.graph.weighted:
+                        weight = self.graph.adjacency.get(u, {}).get(v)
+                        if weight is None or weight == float('inf'):
+                            values.append("∞")
+                        else:
+                            values.append(f"{weight:g}")
+                    else:
+                        values.append(f"{val:g}")
             self.matrix_table.insert("", tk.END, values=values)
     def _update_adj_list(self) -> None:
         adj_list = self.graph.adjacency_list()
@@ -821,9 +824,12 @@ class GraphApp(tk.Tk):
                 # Offset cố định trong không gian màn hình (points)
                 # 9 points ≈ 0.3cm trên màn hình chuẩn
                 offset_points = 9
+                # Định dạng nhãn trọng số: hiển thị ∞ nếu là vô cùng
+                weight_label = "∞" if weight == float('inf') else f"{weight:g}"
+                
                 # Vẽ label với offset points (khoảng cách cố định trên màn hình)
                 self.ax.annotate(
-                    f"{weight:g}",
+                    weight_label,
                     xy=(mid_x, mid_y),  # Vị trí gốc (điểm giữa cạnh)
                     xytext=(perp_x * offset_points, perp_y * offset_points),  # Offset theo hướng vuông góc
                     textcoords='offset points',  # Sử dụng offset points thay vì data coordinates

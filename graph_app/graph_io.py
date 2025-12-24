@@ -55,7 +55,7 @@ def read_graph_from_text(
             except ValueError:
                 raise ValueError(f"Lỗi dòng {i}: Trọng số '{parts[2]}' không hợp lệ (phải là số).")
         else:
-            weight = 0.0  # Gán mặc định là 0 nếu không nhập trọng số
+            weight = 1.0  # Gán mặc định là 1 nếu có cạnh nối nhưng không nhập trọng số
         
         edges.append((u, v, weight))
 
@@ -107,11 +107,17 @@ def export_graph_to_file(graph: GraphData, path: str | Path) -> None:
             row_values: List[str] = [nodes[idx]]
             for col_idx, val in enumerate(row):
                 v = nodes[col_idx]
-                weight = graph.adjacency.get(u, {}).get(v)
-                if graph.weighted:
-                    row_values.append("INF" if weight is None else f"{weight:g}")
+                if u == v:
+                    row_values.append("0")
                 else:
-                    row_values.append(f"{val:g}")
+                    weight = graph.adjacency.get(u, {}).get(v)
+                    if graph.weighted:
+                        if weight is None or weight == float('inf'):
+                            row_values.append("∞")
+                        else:
+                            row_values.append(f"{weight:g}")
+                    else:
+                        row_values.append(f"{val:g}")
             matrix_lines.append("\t".join(row_values))
     else:
         matrix_lines.append("∅")

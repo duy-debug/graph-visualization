@@ -92,7 +92,9 @@ class GraphData:
                 # Nếu có trọng số, định dạng: "v (w)"
                 formatted_neighbors = []
                 for nbr, weight in neighbors.items():
-                    if weight == int(weight):
+                    if weight == float('inf'):
+                        formatted_neighbors.append(f"{nbr} (∞)")
+                    elif weight == int(weight):
                         formatted_neighbors.append(f"{nbr} ({int(weight)})")
                     else:
                         formatted_neighbors.append(f"{nbr} ({weight:g})")
