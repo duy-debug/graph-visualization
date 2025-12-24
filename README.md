@@ -32,7 +32,7 @@
 
 ---
 
-## 🛠️ CORE TECHNOLOGIES
+## CORE TECHNOLOGIES
 
 | Technology | Role |
 |-----------|-----------|
