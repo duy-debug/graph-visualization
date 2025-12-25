@@ -2,7 +2,7 @@
 
 **Developer:** Tran Mai Ngoc Duy - ID: 65130650  
 **Class:** 65CNTT1  
-**Supervisor:** M.Sc. Pham Thi Thu Thuy  
+**Supervisor:** Ph.D. Pham Thi Thu Thuy  
 **Project:** Major Base Project - GRAPH REPRESENTATION SIMULATION USING ADJACENCY MATRIX & ADJACENCY LIST
 
 ---
