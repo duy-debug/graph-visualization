@@ -2,8 +2,8 @@
 
 **Sinh viên thực hiện:** Trần Mai Ngọc Duy - MSSV: 65130650  
 **Lớp:** 65CNTT1  
-**Giảng viên hướng dẫn:** ThS. Phạm Thị Thu Thúy  
-**Đề tài:** Đồ án cơ sở ngành - MÔ PHỎNG BIỂU DIỄN ĐỒ THỊ BẰNG MA TRẬN KỀ & DANH SÁCH KỀ 
+**Giảng viên hướng dẫn:** TS. Phạm Thị Thu Thúy  
+**Đề tài:** Đồ án cơ sở ngành - MÔ PHỎNG BIỂU DIỄN ĐỒ THỊ BẰNG MA TRẬN KỀ VÀ DANH SÁCH KỀ 
 
 ---
 
@@ -54,6 +54,7 @@
 - **`graph_app/app.py`**: Trái tim của ứng dụng, quản lý giao diện chính, điều khiển sự kiện và đồng bộ dữ liệu.
 - **`graph_app/graph_data.py`**: Thành phần Model, định nghĩa cấu trúc dữ liệu Graph và các phép toán cơ bản.
 - **`graph_app/graph_io.py`**: Tiện ích I/O, xử lý việc nạp file, xuất báo cáo và dữ liệu mẫu.
+- **`graph_app/benchmark.py`**: Module đánh giá hiệu năng, đo lường thời gian xử lý các thao tác đồ thị.
 
 ---
 
@@ -67,6 +68,30 @@
    ```bash
    python -m graph_app.app
    ```
+3. **Chạy benchmark đánh giá hiệu năng**:
+   ```bash
+   python -m graph_app.benchmark
+   ```
+
+---
+
+## ĐÁNH GIÁ HIỆU NĂNG (BENCHMARK)
+
+Module `benchmark.py` cung cấp công cụ đo lường hiệu năng ứng dụng với các tính năng:
+
+### Các chỉ số được đo:
+- **Thời gian tạo cấu trúc dữ liệu**: Đo thời gian khởi tạo đồ thị từ danh sách cạnh.
+- **Thời gian kiểm tra cạnh**: Đo thời gian truy vấn sự tồn tại của cạnh (1000 lần).
+- **Thời gian lấy danh sách kề**: Đo thời gian truy xuất các đỉnh kề (1000 lần).
+- **Thời gian tạo ma trận kề**: Đo thời gian sinh ma trận kề từ cấu trúc dữ liệu.
+- **Thời gian tạo danh sách kề**: Đo thời gian sinh danh sách kề dạng văn bản.
+- **Thời gian vẽ đồ thị**: Đo thời gian render đồ thị bằng Matplotlib.
+
+### Cấu hình test mặc định:
+- **Số đỉnh**: 50, 200, 500
+- **Mật độ**: 10%, 30%, 50%
+
+Kết quả benchmark sẽ được xuất ra file `benchmark_results.txt` trong thư mục `graph_app`.
 
 ---
 

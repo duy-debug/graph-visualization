@@ -3,7 +3,7 @@
 **Developer:** Tran Mai Ngoc Duy - ID: 65130650  
 **Class:** 65CNTT1  
 **Supervisor:** Ph.D. Pham Thi Thu Thuy  
-**Project:** Major Base Project - GRAPH REPRESENTATION SIMULATION USING ADJACENCY MATRIX & ADJACENCY LIST
+**Project:** Major Base Project - GRAPH REPRESENTATION SIMULATION USING ADJACENCY MATRIX AND ADJACENCY LIST
 
 ---
 
@@ -48,6 +48,7 @@
 - **`graph_app/app.py`**: The main Controller & View; manages the GUI, event loop, and real-time synchronization.
 - **`graph_app/graph_data.py`**: The Model layer; defines the core Graph data structure and fundamental graph operations.
 - **`graph_app/graph_io.py`**: Utility module; handles file parsing, report generation, and sample data loading.
+- **`graph_app/benchmark.py`**: Performance evaluation module; measures processing time of various graph operations.
 
 ---
 
@@ -61,6 +62,30 @@
    ```bash
    python -m graph_app.app
    ```
+3. **Run Performance Benchmark**:
+   ```bash
+   python -m graph_app.benchmark
+   ```
+
+---
+
+## PERFORMANCE BENCHMARK
+
+The `benchmark.py` module provides tools for measuring application performance with the following features:
+
+### Measured Metrics:
+- **Structure Creation Time**: Time to initialize graph from edge list.
+- **Edge Check Time**: Time to query edge existence (1000 iterations).
+- **Neighbor Retrieval Time**: Time to access adjacent vertices (1000 iterations).
+- **Adjacency Matrix Generation Time**: Time to create adjacency matrix representation.
+- **Adjacency List Generation Time**: Time to create adjacency list text representation.
+- **Drawing Time**: Time to render graph using Matplotlib.
+
+### Default Test Configurations:
+- **Node counts**: 50, 200, 500
+- **Densities**: 10%, 30%, 50%
+
+Benchmark results will be exported to `benchmark_results.txt` in the `graph_app` directory.
 
 ---
 
