@@ -1,5 +1,14 @@
-4
+6
 1
-a b 3
-b c 2
-f
+A D
+A C
+B C
+C D
+S H
+H C
+H D
+S B
+
+
+
+
