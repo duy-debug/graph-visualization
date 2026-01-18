@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import List, Tuple
 from .graph_data import GraphData
 
-def read_graph_from_text(
+def read_graph_from_text( # Đọc dữ liệu đồ thị từ một chuỗi văn bản.
     text: str, directed: bool = False, weighted: bool = False
 ) -> GraphData:
     """
@@ -69,16 +69,16 @@ def read_graph_from_text(
     graph = GraphData(directed=directed, weighted=weighted)
     graph.load_from_edges(nodes, edges)
     return graph
-
-def read_graph_from_file(
+def read_graph_from_file( # Đọc dữ liệu đồ thị từ tệp tin cục bộ.
     path: str | Path, directed: bool = False, weighted: bool = False
 ) -> GraphData:
-    """Đọc dữ liệu đồ thị từ tệp tin cục bộ."""
-    return read_graph_from_text(Path(path).read_text(encoding="utf-8"), directed, weighted)
-
-def export_graph_to_file(graph: GraphData, path: str | Path) -> None:
     """
-    Xuất cấu trúc đồ thị hiện tại ra tệp tin văn bản (.txt) kèm theo báo cáo chi tiết.
+    Đọc nội dung file thành chuỗi văn bản
+    Phân tích chuỗi đó thành đối tượng đồ thị
+    """
+    return read_graph_from_text(Path(path).read_text(encoding="utf-8"), directed, weighted)
+def export_graph_to_file(graph: GraphData, path: str | Path) -> None: # Xuất cấu trúc đồ thị hiện tại ra tệp tin văn bản (.txt)
+    """
     Bao gồm: thuộc tính đồ thị, ma trận kề, danh sách kề và danh sách cạnh.
     """
     nodes = graph.nodes
@@ -150,9 +150,7 @@ def export_graph_to_file(graph: GraphData, path: str | Path) -> None:
         *adj_list_lines,
     ]
     Path(path).write_text("\n".join(lines), encoding="utf-8")
-
-def load_karate_club(directed: bool = False) -> GraphData:
-    """Tải đồ thị mẫu nổi tiếng - Zachary's Karate Club từ thư viện NetworkX."""
+def load_karate_club(directed: bool = False) -> GraphData: # Tải đồ thị mẫu nổi tiếng - Zachary's Karate Club từ thư viện NetworkX.
     import networkx as nx
     base_graph = nx.karate_club_graph()
     data = GraphData(directed=directed, weighted=False)

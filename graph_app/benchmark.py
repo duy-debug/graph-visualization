@@ -5,10 +5,8 @@ import sys
 from pathlib import Path
 from typing import List, Tuple, Dict
 from dataclasses import dataclass
-
 # Import các module của ứng dụng
 from .graph_data import GraphData
-
 
 @dataclass
 class BenchmarkResult:
@@ -30,7 +28,7 @@ class BenchmarkResult:
     draw_time: float = 0.0          # Thời gian vẽ đồ thị (Matplotlib)
 
 
-def generate_random_graph(
+def generate_random_graph( # Tạo đồ thị ngẫu nhiên với số đỉnh và mật độ cho trước
     n_nodes: int, 
     density: float, 
     directed: bool = False, 
@@ -50,61 +48,75 @@ def generate_random_graph(
     Returns:
         Tuple gồm danh sách đỉnh và danh sách cạnh
     """
+    # Thiết lập seed để kết quả có thể lặp lại (reproducible)
     if seed is not None:
         random.seed(seed)
     
-    # Tạo danh sách đỉnh
+    # Bước 1: Tạo danh sách đỉnh từ 0 đến n_nodes-1 (dạng chuỗi)
+    # Ví dụ: n_nodes=5 → nodes = ["0", "1", "2", "3", "4"]
     nodes = [str(i) for i in range(n_nodes)]
     
-    # Tính số cạnh mục tiêu dựa trên mật độ
+    # Bước 2: Tính số cạnh tối đa có thể có trong đồ thị
+    # - Đồ thị có hướng: n*(n-1) (mỗi đỉnh nối với n-1 đỉnh khác, 2 chiều)
+    # - Đồ thị vô hướng: n*(n-1)/2 (mỗi cặp đỉnh chỉ có 1 cạnh)
     if directed:
         max_edges = n_nodes * (n_nodes - 1)
     else:
         max_edges = n_nodes * (n_nodes - 1) // 2
     
+    # Bước 3: Tính số cạnh mục tiêu dựa trên mật độ
+    # Ví dụ: max_edges=100, density=0.3 → target_edges=30
     target_edges = int(max_edges * density)
     
-    # Tạo tất cả các cặp đỉnh có thể
+    # Bước 4: Tạo tất cả các cặp đỉnh có thể (không bao gồm cạnh tự nối)
     all_pairs = []
     for i in range(n_nodes):
         for j in range(n_nodes):
-            if i != j:
+            if i != j:  # Không cho phép cạnh tự nối (i→i)
                 if directed:
+                    # Đồ thị có hướng: thêm cả (i,j) và (j,i)
                     all_pairs.append((str(i), str(j)))
-                elif i < j:  # Với đồ thị vô hướng, chỉ lấy i < j
+                elif i < j:  # Đồ thị vô hướng: chỉ lấy i<j để tránh trùng lặp
                     all_pairs.append((str(i), str(j)))
     
-    # Chọn ngẫu nhiên các cạnh
+    # Bước 5: Chọn ngẫu nhiên số cạnh cần thiết từ tất cả các cặp có thể
+    # random.sample() đảm bảo không chọn trùng lặp
     selected_pairs = random.sample(all_pairs, min(target_edges, len(all_pairs)))
     
-    # Tạo danh sách cạnh với trọng số
+    # Bước 6: Tạo danh sách cạnh với trọng số
     edges = []
     for u, v in selected_pairs:
         if weighted:
+            # Đồ thị có trọng số: random từ 1.0 đến 10.0, làm tròn 1 chữ số
             weight = round(random.uniform(1.0, 10.0), 1)
         else:
+            # Đồ thị không trọng số: mặc định = 1.0
             weight = 1.0
         edges.append((u, v, weight))
     
+    # Trả về tuple (danh sách đỉnh, danh sách cạnh)
     return nodes, edges
 
-def measure_create_structure(nodes: List[str], edges: List[Tuple], directed: bool, weighted: bool) -> Tuple[GraphData, float]:
+def measure_create_structure(nodes: List[str], edges: List[Tuple], directed: bool, weighted: bool) -> Tuple[GraphData, float]: # Đo thời gian tạo cấu trúc dữ liệu đồ thị
     """
     Đo thời gian tạo cấu trúc dữ liệu đồ thị.
     
     Returns:
         Tuple gồm đối tượng GraphData và thời gian (ms)
     """
+    # Bắt đầu đo thời gian (perf_counter: độ chính xác cao nhất)
     start = time.perf_counter()
     
+    # Tạo đối tượng GraphData rỗng với các thuộc tính
     graph = GraphData(directed=directed, weighted=weighted)
+    # Nạp dữ liệu đỉnh và cạnh vào đồ thị (xây dựng cấu trúc adjacency)
     graph.load_from_edges(nodes, edges)
     
+    # Tính thời gian đã trôi qua và chuyển từ giây sang milliseconds
     elapsed = (time.perf_counter() - start) * 1000  # Chuyển sang ms
-    return graph, elapsed
+    return graph, elapsed  # Trả về đồ thị và thời gian
 
-
-def measure_check_edge(graph: GraphData, iterations: int = 1000) -> float:
+def measure_check_edge(graph: GraphData, iterations: int = 1000) -> float: # Đo thời gian kiểm tra sự tồn tại của cạnh
     """
     Đo thời gian kiểm tra sự tồn tại của cạnh.
     Thực hiện nhiều lần để có kết quả chính xác.
@@ -112,72 +124,85 @@ def measure_check_edge(graph: GraphData, iterations: int = 1000) -> float:
     Returns:
         Thời gian tổng cộng (ms) cho tất cả iterations
     """
+    # Lấy danh sách tất cả các đỉnh trong đồ thị
     nodes = graph.nodes
     if len(nodes) < 2:
-        return 0.0
+        return 0.0  # Không đủ đỉnh để tạo cạnh
     
-    # Chuẩn bị danh sách các cặp đỉnh để test
+    # Chuẩn bị danh sách các cặp đỉnh ngẫu nhiên để kiểm tra
+    # Ví dụ: [("0","5"), ("3","7"), ...] với iterations=1000 cặp
     test_pairs = [(random.choice(nodes), random.choice(nodes)) for _ in range(iterations)]
     
+    # Bắt đầu đo thời gian
     start = time.perf_counter()
     for u, v in test_pairs:
-        # Kiểm tra cạnh tồn tại trong adjacency
+        # Kiểm tra xem có cạnh từ u đến v không
+        # graph.adjacency.get(u, {}) → lấy dict các đỉnh kề của u
+        # v in {...} → kiểm tra v có trong dict đó không
         _ = v in graph.adjacency.get(u, {})
-    elapsed = (time.perf_counter() - start) * 1000
+    elapsed = (time.perf_counter() - start) * 1000  # Chuyển sang ms
     
-    return elapsed
+    return elapsed  # Trả về tổng thời gian cho 1000 lần kiểm tra
 
-
-def measure_get_neighbors(graph: GraphData, iterations: int = 1000) -> float:
+def measure_get_neighbors(graph: GraphData, iterations: int = 1000) -> float: # Đo thời gian lấy danh sách các đỉnh kề
     """
     Đo thời gian lấy danh sách các đỉnh kề.
     
     Returns:
         Thời gian tổng cộng (ms) cho tất cả iterations
     """
+    # Lấy danh sách tất cả các đỉnh
     nodes = graph.nodes
     if not nodes:
-        return 0.0
+        return 0.0  # Đồ thị rỗng
     
-    # Chuẩn bị danh sách các đỉnh để test
+    # Chuẩn bị danh sách các đỉnh ngẫu nhiên để test
+    # Ví dụ: ["3", "7", "1", ...] với iterations=1000 đỉnh
     test_nodes = [random.choice(nodes) for _ in range(iterations)]
     
+    # Bắt đầu đo thời gian
     start = time.perf_counter()
     for node in test_nodes:
-        # Lấy danh sách các đỉnh kề
+        # Lấy danh sách các đỉnh kề của node
+        # graph.adjacency.get(node, {}) → dict {láng_giềng: trọng_số}
+        # .keys() → lấy danh sách tên các láng giềng
+        # list(...) → chuyển thành list
         _ = list(graph.adjacency.get(node, {}).keys())
-    elapsed = (time.perf_counter() - start) * 1000
+    elapsed = (time.perf_counter() - start) * 1000  # Chuyển sang ms
     
-    return elapsed
+    return elapsed  # Trả về tổng thời gian cho 1000 lần lấy danh sách kề
 
-
-def measure_create_matrix(graph: GraphData) -> float:
+def measure_create_matrix(graph: GraphData) -> float: # Đo thời gian tạo ma trận kề
     """
     Đo thời gian tạo ma trận kề.
     
     Returns:
         Thời gian (ms)
     """
+    # Bắt đầu đo thời gian
     start = time.perf_counter()
+    # Gọi phương thức tạo ma trận kề (list of lists)
+    # Ví dụ: [[0, 5, ∞], [∞, 0, 3], [2, ∞, 0]]
     _ = graph.adjacency_matrix()
-    elapsed = (time.perf_counter() - start) * 1000
-    return elapsed
+    elapsed = (time.perf_counter() - start) * 1000  # Chuyển sang ms
+    return elapsed  # Trả về thời gian tạo ma trận
 
-
-def measure_create_adj_list(graph: GraphData) -> float:
+def measure_create_adj_list(graph: GraphData) -> float: # Đo thời gian tạo danh sách kề
     """
     Đo thời gian tạo danh sách kề.
     
     Returns:
         Thời gian (ms)
     """
+    # Bắt đầu đo thời gian
     start = time.perf_counter()
+    # Gọi phương thức tạo danh sách kề (dict)
+    # Ví dụ: {"0": ["1", "2"], "1": ["2"], "2": []}
     _ = graph.adjacency_list()
-    elapsed = (time.perf_counter() - start) * 1000
-    return elapsed
+    elapsed = (time.perf_counter() - start) * 1000  # Chuyển sang ms
+    return elapsed  # Trả về thời gian tạo danh sách kề
 
-
-def measure_draw_time(graph: GraphData) -> float:
+def measure_draw_time(graph: GraphData) -> float: # Đo thời gian vẽ đồ thị bằng Matplotlib + NetworkX
     """
     Đo thời gian vẽ đồ thị bằng Matplotlib + NetworkX.
     Lưu ý: Phần này phụ thuộc vào thư viện bên ngoài.
@@ -186,35 +211,39 @@ def measure_draw_time(graph: GraphData) -> float:
         Thời gian (ms)
     """
     try:
+        # Import các thư viện cần thiết
         import networkx as nx
         import matplotlib
-        matplotlib.use('Agg')  # Sử dụng backend không hiển thị
+        matplotlib.use('Agg')  # Sử dụng backend không hiển thị (không mở cửa sổ)
         import matplotlib.pyplot as plt
         
+        # Bắt đầu đo thời gian
         start = time.perf_counter()
         
-        # Chuyển đổi sang NetworkX
+        # Bước 1: Chuyển đổi GraphData sang NetworkX Graph
         nx_graph = graph.to_networkx()
         
-        # Tính toán layout
+        # Bước 2: Tính toán vị trí các đỉnh (spring layout - thuật toán lò xo)
+        # seed=42 để kết quả nhất quán
         pos = nx.spring_layout(nx_graph, seed=42)
         
-        # Vẽ đồ thị (không hiển thị)
-        fig, ax = plt.subplots(figsize=(8, 6))
-        nx.draw_networkx_nodes(nx_graph, pos, ax=ax, node_size=300)
-        nx.draw_networkx_edges(nx_graph, pos, ax=ax)
-        nx.draw_networkx_labels(nx_graph, pos, ax=ax, font_size=8)
+        # Bước 3: Vẽ đồ thị (không hiển thị, chỉ tạo trong bộ nhớ)
+        fig, ax = plt.subplots(figsize=(8, 6))  # Tạo figure 8x6 inch
+        nx.draw_networkx_nodes(nx_graph, pos, ax=ax, node_size=300)  # Vẽ đỉnh
+        nx.draw_networkx_edges(nx_graph, pos, ax=ax)  # Vẽ cạnh
+        nx.draw_networkx_labels(nx_graph, pos, ax=ax, font_size=8)  # Vẽ label
         
-        plt.close(fig)  # Đóng figure để giải phóng bộ nhớ
+        plt.close(fig)  # Đóng figure để giải phóng bộ nhớ (quan trọng!)
         
-        elapsed = (time.perf_counter() - start) * 1000
+        # Tính thời gian đã trôi qua
+        elapsed = (time.perf_counter() - start) * 1000  # Chuyển sang ms
         return elapsed
         
     except ImportError:
+        # Nếu không có NetworkX hoặc Matplotlib → trả về 0
         return 0.0
 
-
-def run_single_benchmark(
+def run_single_benchmark( # Chạy benchmark cho một cấu hình đồ thị cụ thể
     n_nodes: int, 
     density: float, 
     directed: bool = False, 
@@ -236,33 +265,40 @@ def run_single_benchmark(
     Returns:
         BenchmarkResult chứa tất cả kết quả đo
     """
-    # 1. Tạo đồ thị ngẫu nhiên
+    # Bước 1: Tạo đồ thị ngẫu nhiên với cấu hình cho trước
+    # Trả về: (danh sách đỉnh, danh sách cạnh)
     nodes, edges = generate_random_graph(n_nodes, density, directed, weighted, seed)
     
-    # 2. Đo thời gian tạo cấu trúc dữ liệu
+    # Bước 2: Đo thời gian tạo cấu trúc dữ liệu (GraphData + load_from_edges)
+    # Trả về: (đối tượng graph, thời gian tạo)
     graph, create_time = measure_create_structure(nodes, edges, directed, weighted)
     
-    # 3. Đo thời gian kiểm tra cạnh
+    # Bước 3: Đo thời gian kiểm tra cạnh (1000 lần kiểm tra ngẫu nhiên)
+    # Đo hiệu năng tra cứu: v in graph.adjacency.get(u, {})
     check_edge_time = measure_check_edge(graph)
     
-    # 4. Đo thời gian lấy danh sách kề
+    # Bước 4: Đo thời gian lấy danh sách kề (1000 lần lấy ngẫu nhiên)
+    # Đo hiệu năng truy xuất: graph.adjacency.get(node, {}).keys()
     get_neighbors_time = measure_get_neighbors(graph)
     
-    # 5. Đo thời gian tạo ma trận kề
+    # Bước 5: Đo thời gian tạo ma trận kề (chuyển đổi adjacency → matrix)
+    # Đo hiệu năng chuyển đổi sang biểu diễn ma trận
     create_matrix_time = measure_create_matrix(graph)
     
-    # 6. Đo thời gian tạo danh sách kề
+    # Bước 6: Đo thời gian tạo danh sách kề (chuyển đổi adjacency → adj_list)
+    # Đo hiệu năng chuyển đổi sang biểu diễn danh sách
     create_adj_list_time = measure_create_adj_list(graph)
     
-    # 7. Đo thời gian vẽ (tùy chọn)
+    # Bước 7: Đo thời gian vẽ (chỉ với đồ thị nhỏ/vừa để tránh quá lâu)
     draw_time = 0.0
-    if include_draw and n_nodes <= 200:  # Chỉ đo vẽ với đồ thị nhỏ/vừa
+    if include_draw and n_nodes <= 200:  # Giới hạn ≤200 đỉnh
         draw_time = measure_draw_time(graph)
     
+    # Tổng hợp tất cả kết quả vào đối tượng BenchmarkResult
     return BenchmarkResult(
         n_nodes=n_nodes,
         density=density,
-        n_edges=graph.edge_count(),
+        n_edges=graph.edge_count(),  # Số cạnh thực tế (có thể khác target)
         directed=directed,
         weighted=weighted,
         create_structure_time=create_time,
@@ -273,8 +309,7 @@ def run_single_benchmark(
         draw_time=draw_time
     )
 
-
-def run_full_benchmark(
+def run_full_benchmark( # Chạy benchmark đầy đủ với nhiều cấu hình khác nhau
     sizes: List[int] = None,
     densities: List[float] = None,
     include_draw: bool = True
@@ -290,33 +325,41 @@ def run_full_benchmark(
     Returns:
         Danh sách các BenchmarkResult
     """
+    # Thiết lập giá trị mặc định nếu không được cung cấp
     if sizes is None:
-        sizes = [50, 200, 500]
+        sizes = [50, 200, 500]  # Đồ thị nhỏ, vừa, lớn
     if densities is None:
-        densities = [0.1, 0.3, 0.5]
+        densities = [0.1, 0.3, 0.5]  # Thưa (10%), vừa (30%), dày (50%)
     
+    # Danh sách lưu kết quả tất cả các test
     results = []
     print()
+    
+    # Vòng lặp qua tất cả các kết hợp (size, density)
+    # Ví dụ: (50, 0.1), (50, 0.3), (50, 0.5), (200, 0.1), ...
     for n in sizes:
         for d in densities:
+            # In thông báo đang test (không xuống dòng, flush ngay)
             print(f"Đang test: {n} đỉnh, mật độ {d*100:.0f}%...", end=" ", flush=True)
             
+            # Chạy benchmark cho cấu hình này
             result = run_single_benchmark(
                 n_nodes=n, 
                 density=d, 
-                directed=False, 
-                weighted=False,
+                directed=False,  # Mặc định: vô hướng
+                weighted=False,  # Mặc định: không trọng số
                 include_draw=include_draw
             )
+            # Thêm kết quả vào danh sách
             results.append(result)
             
+            # In thông báo hoàn thành (có số cạnh thực tế)
             print(f"Hoàn thành ({result.n_edges} cạnh)")
     
     print()
-    return results
+    return results  # Trả về danh sách tất cả kết quả
 
-
-def print_results_table(results: List[BenchmarkResult]) -> None:
+def print_results_table(results: List[BenchmarkResult]) -> None: # In kết quả dưới dạng bảng
     """In kết quả dưới dạng bảng đẹp."""
     
     print("=" * 130)
@@ -336,8 +379,7 @@ def print_results_table(results: List[BenchmarkResult]) -> None:
     print("-" * 130)
     print()
 
-
-def print_analysis(results: List[BenchmarkResult]) -> None:
+def print_analysis(results: List[BenchmarkResult]) -> None: # In phân tích kết quả
     """In phân tích kết quả."""
     
     print("=" * 90)
@@ -383,7 +425,7 @@ def print_analysis(results: List[BenchmarkResult]) -> None:
     
     print()
     
-def export_results_to_file(results: List[BenchmarkResult], filepath: str = None) -> str:
+def export_results_to_file(results: List[BenchmarkResult], filepath: str = None) -> str: # Xuất kết quả benchmark ra file văn bản
     """
     Xuất kết quả benchmark ra file văn bản.
     
@@ -411,8 +453,7 @@ def export_results_to_file(results: List[BenchmarkResult], filepath: str = None)
     Path(filepath).write_text("\n".join(lines), encoding="utf-8")
     return str(filepath)
 
-
-def main():
+def main(): # Hàm chính để chạy benchmark
     """Hàm chính để chạy benchmark."""
     print()
     print("Bắt đầu đánh giá hiệu năng")
@@ -435,7 +476,6 @@ def main():
     filepath = export_results_to_file(results)
     print(f"Đã lưu kết quả vào: {filepath}")
     print()
-
 
 if __name__ == "__main__":
     main()

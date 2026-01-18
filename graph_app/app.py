@@ -11,21 +11,21 @@ from .graph_io import (
     read_graph_from_file,
     read_graph_from_text,
 )
-class GraphApp(tk.Tk):
+class GraphApp(tk.Tk): # Lớp chính điều khiển giao diện người dùng (Controller & View).
     """
     Lớp chính điều khiển giao diện người dùng (Controller & View).
     Kế thừa từ tk.Tk để tạo cửa sổ chính của ứng dụng.
     """
-    def __init__(self) -> None:
+    def __init__(self) -> None: # Khởi tạo cửa sổ chính
         super().__init__()
         self.title("Graph Manager - Ứng dụng Quản lý Đồ thị")
         self.geometry("1400x900")
         
         # Cố gắng bật chế độ toàn màn hình nếu môi trường hỗ trợ
         try:
-            self.state("zoomed")
-        except tk.TclError:
-            self.attributes("-zoomed", True)
+            self.state("zoomed")  # Windows: Toàn màn hình
+        except tk.TclError: 
+            self.attributes("-zoomed", True) # Linux/Mac
 
         # Khởi tạo dữ liệu đồ thị rỗng
         self.graph = GraphData()
@@ -46,7 +46,7 @@ class GraphApp(tk.Tk):
     # ------------------------------------------------------------------
     # GIAO DIỆN (UI)
     # ------------------------------------------------------------------
-    def _build_widgets(self) -> None:
+    def _build_widgets(self) -> None: # Xây dựng giao diện
         """Khởi tạo và sắp xếp các thành phần giao diện trên cửa sổ."""
         # Layout chính: Horizontal PanedWindow (Trái: Sidebar, Phải: Graph)
         self.main_paned = ttk.PanedWindow(self, orient=tk.HORIZONTAL)
@@ -198,7 +198,7 @@ class GraphApp(tk.Tk):
     # ------------------------------------------------------------------
     # CÁC HÀM XỬ LÝ SỰ KIỆN (EVENT HANDLERS)
     # ------------------------------------------------------------------
-    def _parse_node_count(self) -> int:
+    def _parse_node_count(self) -> int: # Đọc số lượng đỉnh từ ô nhập
         """Đọc số lượng đỉnh từ ô nhập"""
         text = self.nodes_entry.get().strip()
         if not text:
@@ -210,74 +210,69 @@ class GraphApp(tk.Tk):
             return count
         except ValueError:
             raise ValueError("Số lượng đỉnh phải là một số nguyên hợp lệ.")
-
-    def _extract_nodes_from_edges(self) -> set[str]:
-        """Trích xuất tất cả các đỉnh từ danh sách cạnh (kể cả dòng chỉ có 1 đỉnh)"""
+    def _extract_nodes_from_edges(self) -> set[str]: # Trích xuất tất cả các đỉnh từ danh sách cạnh (kể cả dòng chỉ có 1 đỉnh)
         nodes = set()
-        for raw in self.edges_entry.get("1.0", tk.END).strip().splitlines():
-            raw = raw.strip()
+        for raw in self.edges_entry.get("1.0", tk.END).strip().splitlines(): # Lấy tất cả các dòng trong ô nhập
+            raw = raw.strip() # Loại bỏ khoảng trắng ở đầu và cuối dòng
             if not raw:
                 continue
-            parts = raw.split()
-            if len(parts) >= 2:
+            parts = raw.split() # Tách các phần tử trong dòng
+            if len(parts) >= 2: # Dòng có 2 đỉnh trở lên, dùng để khai báo cạnh
                 nodes.add(parts[0])
                 nodes.add(parts[1])
-            elif len(parts) == 1:
-                nodes.add(parts[0])
-        return nodes
-    def _parse_edges(
+            elif len(parts) == 1: # Dòng chỉ có một đỉnh, dùng để khai báo đỉnh đơn lẻ
+                nodes.add(parts[0]) # Thêm đỉnh vào set
+        return nodes # Trả về set các đỉnh
+    def _parse_edges( # Parse danh sách cạnh
         self,
-        allowed_nodes: set[str] | None = None,
-        weighted_flag: bool | None = None,
-    ) -> list[tuple[str, str, float]]:
-        """Parse danh sách cạnh. allowed_nodes có thể None để chấp nhận mọi đỉnh."""
-        if weighted_flag is None:
+        allowed_nodes: set[str] | None = None, # Set các đỉnh được chấp nhận
+        weighted_flag: bool | None = None, # Cờ đánh dấu có trọng số không
+    ) -> list[tuple[str, str, float]]: # Parse danh sách cạnh. allowed_nodes có thể None để chấp nhận mọi đỉnh.
+        if weighted_flag is None: # Nếu không có cờ trọng số, lấy từ options
             weighted_flag = self.options_var["weighted"].get()
-        edges: list[tuple[str, str, float]] = []
-        line_no = 0
-        for raw in self.edges_entry.get("1.0", tk.END).strip().splitlines():
-            raw = raw.strip()
-            line_no += 1
-            if not raw:
+        edges: list[tuple[str, str, float]] = [] # Danh sách các cạnh
+        line_no = 0 # Số dòng
+        for raw in self.edges_entry.get("1.0", tk.END).strip().splitlines(): # Lấy tất cả các dòng trong ô nhập
+            raw = raw.strip() # Loại bỏ khoảng trắng ở đầu và cuối dòng
+            line_no += 1 # Tăng số dòng
+            if not raw: # Nếu dòng trống, bỏ qua
                 continue
-            parts = raw.split()
-            if len(parts) == 1:
-                # Dòng chỉ có một đỉnh, dùng để khai báo đỉnh đơn lẻ
+            parts = raw.split() # Tách các phần tử trong dòng
+            if len(parts) == 1: # Dòng chỉ có một đỉnh, dùng để khai báo đỉnh đơn lẻ
                 continue
-            if len(parts) < 2:
+            if len(parts) < 2: # Nếu có ít hơn 2 phần tử, báo lỗi
                 raise ValueError(f"Dòng {line_no}: cần tối thiểu 1 đỉnh hoặc 1 cạnh.")
-            u, v = parts[:2]
+            u, v = parts[:2] # Lấy đỉnh đầu và đỉnh cuối
             # Chỉ kiểm tra allowed_nodes nếu được chỉ định (không bắt buộc)
             if allowed_nodes is not None and (u not in allowed_nodes or v not in allowed_nodes):
                 raise ValueError(
                     f"Dòng {line_no}: đỉnh '{u}' hoặc '{v}' không nằm trong danh sách đã nhập."
                 )
             # Xử lý trọng số
-            if weighted_flag:
-                if len(parts) == 3:
+            if weighted_flag: # Nếu có cờ trọng số
+                if len(parts) == 3: # Nếu có 3 phần tử, lấy trọng số
                     try:
                         weight = float(parts[2])
                     except ValueError:
                         raise ValueError(f"Dòng {line_no}: trọng số '{parts[2]}' không hợp lệ.")
                 elif len(parts) == 2:
-                    weight = 1.0  # Mặc định là 1 nếu có cạnh nối nhưng không nhập trọng số
+                    weight = 1.0 # Mặc định là 1 nếu có cạnh nối nhưng không nhập trọng số
                 else:
                     raise ValueError(
                         f"Dòng {line_no}: định dạng cạnh không hợp lệ (chỉ hỗ trợ 'u v' hoặc 'u v w')."
                     )
-            else:
-                if len(parts) >= 3:
+            else: # Nếu không có cờ trọng số
+                if len(parts) >= 3: # Nếu có 3 phần tử, báo lỗi
                     raise ValueError(
                         f"Dòng {line_no}: đồ thị không trọng số, không được nhập trọng số."
                     )
                 weight = 1.0
-            edges.append((u, v, weight))
-        return edges
-    def _update_graph(self) -> None:
-        """Cập nhật đồ thị khi người dùng nhấn một nút lệnh cụ thể (Ví dụ: Thêm/Xóa)."""
+            edges.append((u, v, weight)) # Thêm cạnh vào danh sách
+        return edges # Trả về danh sách cạnh
+    def _update_graph(self) -> None: # Cập nhật đồ thị khi người dùng nhấn một nút lệnh cụ thể (Ví dụ: Thêm/Xóa).
         try:
             # Trích xuất tất cả đỉnh từ danh sách cạnh (chấp nhận mọi loại: số, chữ, ký tự đặc biệt)
-            edges_nodes = self._extract_nodes_from_edges()
+            edges_nodes = self._extract_nodes_from_edges() 
             if not edges_nodes:
                 raise ValueError("Vui lòng nhập ít nhất một cạnh (ô danh sách cạnh).")
             # Đọc số lượng đỉnh ban đầu (nếu có)
@@ -286,26 +281,25 @@ class GraphApp(tk.Tk):
             # Sắp xếp theo thứ tự từ điển (chấp nhận mọi loại đỉnh: số, chữ, ký tự đặc biệt)
             nodes_list = sorted(edges_nodes)
             # Tự động cập nhật số lượng đỉnh dựa trên số đỉnh thực tế tìm được
-            actual_count = len(nodes_list)
-            self.nodes_entry.delete(0, tk.END)
-            self.nodes_entry.insert(0, str(actual_count))
+            actual_count = len(nodes_list) # Số lượng đỉnh thực tế
+            self.nodes_entry.delete(0, tk.END) # Xóa số lượng đỉnh ban đầu
+            self.nodes_entry.insert(0, str(actual_count)) # Thêm số lượng đỉnh thực tế
             # Parse edges với danh sách đỉnh thực tế từ cạnh
             edges = self._parse_edges(None)  # Không kiểm tra allowed_nodes nữa
-            weighted_option = self.options_var["weighted"].get()
+            weighted_option = self.options_var["weighted"].get() # Lấy cờ trọng số
             if not nodes_list:
-                raise ValueError("Cần ít nhất 1 đỉnh")
+                raise ValueError("Cần ít nhất 1 đỉnh") # Nếu không có đỉnh, báo lỗi
             g = GraphData(
-                directed=self.options_var["directed"].get(),
-                weighted=weighted_option,
+                directed=self.options_var["directed"].get(), # Lấy cờ hướng
+                weighted=weighted_option, # Lấy cờ trọng số
             )
-            g.load_from_edges(nodes_list, edges)
-            self.graph = g
+            g.load_from_edges(nodes_list, edges) # Load đồ thị từ danh sách đỉnh và cạnh
+            self.graph = g # Cập nhật đồ thị
             self.pos = None  # Reset vị trí đỉnh
             self._refresh_views()
-        except ValueError as exc:
+        except ValueError as exc: # Nếu có lỗi, hiển thị thông báo
             messagebox.showerror("Lỗi nhập liệu", str(exc))
-    def _auto_update_graph(self) -> None:
-        """Tự động cập nhật đồ thị khi nhập danh sách cạnh"""
+    def _auto_update_graph(self) -> None: # Tự động cập nhật đồ thị khi nhập danh sách cạnh
         try:
             # Xóa thông báo lỗi cũ
             self.error_label_var.set("")
@@ -374,8 +368,7 @@ class GraphApp(tk.Tk):
         except ValueError as e:
             # Hiển thị lỗi trong label màu đỏ
             self.error_label_var.set(str(e))
-    def _on_option_change(self) -> None:
-        """Xử lý khi thay đổi các tùy chọn như 'Có hướng' hoặc 'Có trọng số'."""
+    def _on_option_change(self) -> None: # Xử lý khi thay đổi các tùy chọn như 'Có hướng' hoặc 'Có trọng số'.
         old_directed = self.graph.directed
         new_directed = self.options_var["directed"].get()
         self.graph.directed = new_directed
@@ -411,7 +404,7 @@ class GraphApp(tk.Tk):
         density = self.graph.density()
         label = f"Mật độ: {density:.3f} ({self.graph.density_label()})"
         self.density_label_var.set(label)
-    def _import_from_file(self) -> None:
+    def _import_from_file(self) -> None: # Import từ file
         file_path = filedialog.askopenfilename(
             title="Chọn file đồ thị",
             filetypes=[("Text", "*.txt"), ("All files", "*.*")],
@@ -449,8 +442,7 @@ class GraphApp(tk.Tk):
             self.edges_entry.insert("1.0", "\n".join(edges_lines))
         except Exception as exc:  # noqa: BLE001
             messagebox.showerror("Không đọc được file", str(exc))
-    def _export_graph(self) -> None:
-        """Xuất dữ liệu đồ thị hiện tại ra file văn bản (.txt)."""
+    def _export_graph(self) -> None: # Xuất đồ thị ra file
         file_path = filedialog.asksaveasfilename(
             defaultextension=".txt",
             filetypes=[("Text", "*.txt")],
@@ -460,8 +452,7 @@ class GraphApp(tk.Tk):
             return
         export_graph_to_file(self.graph, file_path)
         messagebox.showinfo("Hoàn tất", f"Đã lưu vào {file_path}")
-    def _load_karate(self) -> None:
-        """Tải đồ thị Karate Club mẫu để demo, thay thế đồ thị hiện tại."""
+    def _load_karate(self) -> None: # Tải đồ thị Karate Club mẫu
         self.graph = load_karate_club(directed=self.options_var["directed"].get())
         self.pos = None  # Reset vị trí đỉnh
         self._refresh_views()
@@ -474,7 +465,7 @@ class GraphApp(tk.Tk):
                     edges_text.append(f"{u} {v}")
         self.edges_entry.delete("1.0", tk.END)
         self.edges_entry.insert("1.0", "\n".join(edges_text))
-    def _add_vertex(self) -> None:
+    def _add_vertex(self) -> None: # Thêm đỉnh
         name = self.node_name_entry.get().strip()
         if not name:
             messagebox.showwarning("Thông báo", "Vui lòng nhập đỉnh cần thêm")
@@ -484,7 +475,7 @@ class GraphApp(tk.Tk):
             return
         self.graph.add_node(name)
         self._refresh_views()
-    def _remove_vertex(self) -> None:
+    def _remove_vertex(self) -> None: # Xóa đỉnh
         name = self.node_name_entry.get().strip()
         if not name:
             messagebox.showwarning("Thông báo", "Vui lòng nhập tên đỉnh cần xóa")
@@ -503,7 +494,7 @@ class GraphApp(tk.Tk):
         # Đồng bộ lại ô nhập highlight và giao diện
         self._sync_highlight_inputs()
         self._refresh_views()
-    def _add_edge(self) -> None:
+    def _add_edge(self) -> None: # Thêm cạnh
         u = self.edge_u_entry.get().strip()
         v = self.edge_v_entry.get().strip()
         if not u or not v:
@@ -533,7 +524,7 @@ class GraphApp(tk.Tk):
         # Thêm hoặc cập nhật cạnh (ghi đè nếu đã tồn tại và có trọng số)
         self.graph.add_edge(u, v, weight)
         self._refresh_views()
-    def _remove_edge(self) -> None:
+    def _remove_edge(self) -> None: # Xóa cạnh
         u = self.edge_u_entry.get().strip()
         v = self.edge_v_entry.get().strip()
         if not u or not v:
@@ -555,8 +546,7 @@ class GraphApp(tk.Tk):
         # Đồng bộ lại ô nhập highlight và giao diện
         self._sync_highlight_inputs()
         self._refresh_views()
-    def _reset_graph(self) -> None:
-        """Reset tất cả dữ liệu về trạng thái ban đầu"""
+    def _reset_graph(self) -> None: # Reset đồ thị
         # Reset các options về False (bỏ dấu tích trong checkbox)
         self.options_var["directed"].set(False)
         self.options_var["weighted"].set(False)
@@ -580,8 +570,7 @@ class GraphApp(tk.Tk):
         self._clear_highlights()
         # Refresh views
         self._refresh_views()
-    def _clear_highlights(self) -> None:
-        """Xóa nội dung các ô highlight."""
+    def _clear_highlights(self) -> None: # Xóa highlight
         # Xóa trạng thái highlight nội bộ
         self.highlighted_nodes.clear()
         self.highlighted_edges.clear()
@@ -591,8 +580,7 @@ class GraphApp(tk.Tk):
     # ------------------------------------------------------------------
     # CẬP NHẬT GIAO DIỆN (REFRESH UI)
     # ------------------------------------------------------------------
-    def _update_input_fields(self) -> None:
-        """Cập nhật các ô nhập liệu để đồng bộ với đồ thị hiện tại"""
+    def _update_input_fields(self) -> None: # Cập nhật các ô nhập liệu
         # Cập nhật số lượng đỉnh (để trống nếu không có đỉnh)
         self.nodes_entry.delete(0, tk.END)
         if len(self.graph.nodes) > 0:
@@ -614,7 +602,7 @@ class GraphApp(tk.Tk):
             if not self.graph.adjacency.get(node, {}):
                 edges_lines.append(node)
         self.edges_entry.insert("1.0", "\n".join(edges_lines))
-    def _refresh_views(self) -> None:
+    def _refresh_views(self) -> None: # Cập nhật giao diện
         self._update_matrix()
         self._update_adj_list()
         self._update_input_fields()  # Tự động cập nhật ô nhập liệu
@@ -622,7 +610,7 @@ class GraphApp(tk.Tk):
         density = self.graph.density()
         label = f"Mật độ: {density:.3f} ({self.graph.density_label()})"
         self.density_label_var.set(label)
-    def _update_matrix(self) -> None:
+    def _update_matrix(self) -> None: # Cập nhật ma trận kề
         matrix = self.graph.adjacency_matrix()
         # Xóa tất cả columns và rows cũ
         for col in self.matrix_table["columns"]:
@@ -656,7 +644,7 @@ class GraphApp(tk.Tk):
                     else:
                         values.append(f"{val:g}")
             self.matrix_table.insert("", tk.END, values=values)
-    def _update_adj_list(self) -> None:
+    def _update_adj_list(self) -> None: # Cập nhật danh sách kề
         adj_list = self.graph.adjacency_list()
         self.adj_list_text.configure(state=tk.NORMAL)
         self.adj_list_text.delete("1.0", tk.END)
@@ -669,11 +657,9 @@ class GraphApp(tk.Tk):
                 lines.append(f"{node} {arrow} ∅")
         self.adj_list_text.insert("1.0", "\n".join(lines))
         self.adj_list_text.configure(state=tk.DISABLED)
-    def _parse_highlights(self):
-        """Trả về danh sách nodes và edges được highlight từ internal state"""
+    def _parse_highlights(self): # Trả về danh sách nodes và edges được highlight từ internal state
         return list(self.highlighted_nodes), list(self.highlighted_edges)
-    def _sync_highlight_inputs(self):
-        """Đồng bộ highlight input boxes với internal state"""
+    def _sync_highlight_inputs(self): # Đồng bộ highlight input boxes với internal state
         # Sync nodes
         self.highlight_nodes_entry.delete(0, tk.END)
         if self.highlighted_nodes:
@@ -683,8 +669,7 @@ class GraphApp(tk.Tk):
         if self.highlighted_edges:
             edge_strs = [f"{u}-{v}" for u, v in sorted(self.highlighted_edges)]
             self.highlight_edges_entry.insert(0, ';'.join(edge_strs))
-    def _update_highlights_from_inputs(self):
-        """Đọc từ ô input highlight và cập nhật lại trạng thái highlight nội bộ."""
+    def _update_highlights_from_inputs(self): # Cập nhật highlight từ ô nhập liệu
         # Parse highlight nodes: ngăn cách bởi dấu phẩy hoặc khoảng trắng
         raw_nodes = self.highlight_nodes_entry.get().strip()
         new_nodes = set()
@@ -723,8 +708,7 @@ class GraphApp(tk.Tk):
         self.highlighted_edges = new_edges
         # Sau khi cập nhật trạng thái highlight nội bộ, vẽ lại đồ thị
         self._draw_graph()
-    def _draw_graph(self) -> None:
-        """Vẽ đồ thị lên khung Canvas sử dụng Matplotlib và NetworkX."""
+    def _draw_graph(self) -> None: # Vẽ đồ thị lên khung Canvas sử dụng Matplotlib và NetworkX
         self.ax.clear()
         nx_graph = self.graph.to_networkx()
         # Chỉ tính toán lại layout nếu chưa có hoặc số đỉnh thay đổi
@@ -843,18 +827,12 @@ class GraphApp(tk.Tk):
     # ------------------------------------------------------------------
     # Mouse event handlers cho kéo thả đỉnh và highlight
     # ------------------------------------------------------------------
-    # ------------------------------------------------------------------
-    # Mouse event handlers cho kéo thả đỉnh và highlight
-    # ------------------------------------------------------------------
-    def _data_to_display_coords(self, pos):
-        """Chuyển đổi tọa độ dữ liệu (data coords) sang tọa độ màn hình (display pixel coords)."""
+    def _data_to_display_coords(self, pos): # Chuyển đổi tọa độ dữ liệu (data coords) sang tọa độ màn hình (display pixel coords)
         x, y = pos
         # ax.transData.transform trả về (x_screen, y_screen)
         screen_point = self.ax.transData.transform((x, y))
         return screen_point
-
-    def _get_clicked_node(self, event_x, event_y, radius=20):
-        """Tìm đỉnh được click dựa trên tọa độ pixel, trả về tên đỉnh hoặc None."""
+    def _get_clicked_node(self, event_x, event_y, radius=20): # Tìm đỉnh được click dựa trên tọa độ pixel, trả về tên đỉnh hoặc None
         if self.pos is None:
             return None
         
@@ -872,9 +850,7 @@ class GraphApp(tk.Tk):
                 clicked_node = node
         
         return clicked_node
-
-    def _get_clicked_edge(self, event_x, event_y, threshold=10):
-        """Tìm cạnh được click dựa trên tọa độ pixel."""
+    def _get_clicked_edge(self, event_x, event_y, threshold=10): # Tìm cạnh được click dựa trên tọa độ pixel
         import numpy as np
         if self.pos is None:
             return None
@@ -911,9 +887,7 @@ class GraphApp(tk.Tk):
                 clicked_edge = (u, v)
 
         return clicked_edge
-
-    def _on_mouse_press(self, event):
-        """Xử lý khi nhấn chuột: Xác định mục tiêu (Node/Edge) để Highlight hoặc Drag."""
+    def _on_mouse_press(self, event): # Xử lý khi nhấn chuột: Xác định mục tiêu (Node/Edge) để Highlight hoặc Drag
         if event.inaxes != self.ax or self.pos is None:
             return
             
@@ -955,8 +929,7 @@ class GraphApp(tk.Tk):
         self.click_type = None
         self.selected_node = None
         self.dragging = False
-
-    def _on_mouse_motion(self, event):
+    def _on_mouse_motion(self, event): # Xử lý di chuyển chuột cho Dragging
         """Xử lý di chuyển chuột cho Dragging."""
         if not self.dragging or self.selected_node is None or event.inaxes != self.ax:
             return
@@ -982,9 +955,7 @@ class GraphApp(tk.Tk):
                 self._draw_graph()
             except:
                 pass
-
-    def _on_mouse_release(self, event):
-        """Xử lý khi thả chuột: Thực hiện Highlight nếu là Click (không Drag)."""
+    def _on_mouse_release(self, event): # Xử lý khi thả chuột: Thực hiện Highlight nếu là Click (không Drag)
         # Nếu đã drag thực sự -> không highlight
         if not self.is_dragging_active and self.click_target is not None:
             # XỬ LÝ CLICK: HIGHLIGHT
